@@ -443,3 +443,32 @@ func TestProjectTime(t *testing.T) {
 		t.Fatalf("future direction lost: %g", got[0])
 	}
 }
+
+func TestXOR(t *testing.T) {
+	cases := []struct {
+		a, b bool
+		want bool
+		half float64
+	}{
+		{false, false, false, 0},
+		{true, false, true, 1},
+		{false, true, true, 1},
+		{true, true, false, 2},
+	}
+	for _, c := range cases {
+		tr, err := XOR(c.a, c.b)
+		if err != nil {
+			t.Fatalf("%v XOR %v: %v", c.a, c.b, err)
+		}
+		if tr.Bit != c.want {
+			t.Fatalf("%v XOR %v: bit %v, want %v (φ=%g)", c.a, c.b, tr.Bit, c.want, tr.Phi)
+		}
+		wantPhi := c.half * math.Pi
+		if math.Abs(tr.Phi-wantPhi) > 0.05 {
+			t.Fatalf("%v XOR %v: φ=%g, want %g", c.a, c.b, tr.Phi, wantPhi)
+		}
+		if math.Abs(tr.R-10) > 1e-4 {
+			t.Fatalf("%v XOR %v: r=%g, want 10", c.a, c.b, tr.R)
+		}
+	}
+}

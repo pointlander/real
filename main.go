@@ -52,6 +52,8 @@ func main() {
 		err = cmdCosmo(os.Args[2:])
 	case "geodesic":
 		err = cmdGeodesic(os.Args[2:])
+	case "xor":
+		err = cmdXOR(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", os.Args[1])
 		usage(os.Stderr)
@@ -77,6 +79,7 @@ Usage:
   real isco        --metric kerr --mass 1 --spin 0.9
   real cosmo       --om 0.3 --ol 0.7 --z 1
   real geodesic    --metric schwarzschild --x 0,10,1.5708,0 --v 1.2,0,0,0.04 --lambda 100
+  real xor 0 1
 
 Metrics: minkowski, schwarzschild, kerr, rn, kn, ef
   --mass, --spin (a = J/M), --charge
@@ -84,6 +87,10 @@ Coordinates are (t, r, θ, φ) except ef, which is ingoing Eddington–Finkelste
 
 A length of 1 with --mass 1 is one solar mass when scaled by 1.477 km
 (time: 4.925 μs). Angles are radians.
+
+xor flies a circular Schwarzschild geodesic at r = 10. Each input 1
+advances φ by half a turn. The output is 1 when the ship ends nearer π
+than a multiple of 2π.
 `)
 }
 
@@ -118,6 +125,45 @@ func (h holeFlags) build() (gr.Metric, error) {
 	default:
 		return nil, fmt.Errorf("unknown metric %q", h.metric)
 	}
+}
+
+func cmdXOR(args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: real xor <0|1> <0|1>")
+	}
+	a, err := parseBit(args[0])
+	if err != nil {
+		return err
+	}
+	b, err := parseBit(args[1])
+	if err != nil {
+		return err
+	}
+	tr, err := gr.XOR(a, b)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%d XOR %d = %d\n", bitNum(a), bitNum(b), bitNum(tr.Bit))
+	fmt.Printf("Schwarzschild M = 1, circular r = %.6g, final φ = %.8f rad\n", tr.R, tr.Phi)
+	return nil
+}
+
+func parseBit(s string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "1", "t", "true":
+		return true, nil
+	case "0", "f", "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("bit must be 0 or 1, got %q", s)
+	}
+}
+
+func bitNum(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 func cmdCurvature(args []string) error {
