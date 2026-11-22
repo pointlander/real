@@ -1,0 +1,18 @@
+# go build (package main in this directory)
+/real
+
+# go test -c
+*.test
+
+# coverage profiles
+*.out
+
+# cgo and plugin artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# go workspaces
+go.work
+go.work.sum
