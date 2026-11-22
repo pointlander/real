@@ -472,3 +472,57 @@ func TestXOR(t *testing.T) {
 		}
 	}
 }
+
+func TestCNOT(t *testing.T) {
+	in := TwoQubit{1, 2i, -3, 4 - 5i}
+	tr, err := CNOT(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// |00⟩, |01⟩ stay; |10⟩ and |11⟩ exchange, phases included.
+	want := TwoQubit{1, 2i, 4 - 5i, -3}
+	for i := range want {
+		if tr.Out[i] != want[i] {
+			t.Fatalf("amplitude %d: got %v want %v", i, tr.Out[i], want[i])
+		}
+	}
+	for i := 0; i < 4; i++ {
+		control := i >> 1
+		target := i & 1
+		wantPhi := float64(target+control) * math.Pi
+		if math.Abs(tr.Phi[i]-wantPhi) > 0.05 {
+			t.Fatalf("basis %d: φ=%g want %g", i, tr.Phi[i], wantPhi)
+		}
+		if math.Abs(tr.R[i]-10) > 1e-4 {
+			t.Fatalf("basis %d: r=%g", i, tr.R[i])
+		}
+	}
+
+	s := complex(1/math.Sqrt(2), 0)
+	bell, err := CNOT(TwoQubit{s, 0, s, 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantBell := TwoQubit{s, 0, 0, s}
+	for i, w := range wantBell {
+		d := bell.Out[i] - w
+		if math.Abs(real(d)) > 1e-12 || math.Abs(imag(d)) > 1e-12 {
+			t.Fatalf("Bell amplitude %d: got %v want %v", i, bell.Out[i], w)
+		}
+	}
+	// |a00 a11 − a01 a10| is zero for every product state.
+	det := bell.Out[0]*bell.Out[3] - bell.Out[1]*bell.Out[2]
+	if math.Abs(real(det)-0.5) > 1e-12 || imag(det) != 0 {
+		t.Fatalf("entanglement: got %v", det)
+	}
+
+	back, err := CNOT(tr.Out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range in {
+		if back.Out[i] != in[i] {
+			t.Fatalf("CNOT twice, amplitude %d: got %v want %v", i, back.Out[i], in[i])
+		}
+	}
+}

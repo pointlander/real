@@ -54,6 +54,8 @@ func main() {
 		err = cmdGeodesic(os.Args[2:])
 	case "xor":
 		err = cmdXOR(os.Args[2:])
+	case "cnot":
+		err = cmdCNOT(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", os.Args[1])
 		usage(os.Stderr)
@@ -80,6 +82,7 @@ Usage:
   real cosmo       --om 0.3 --ol 0.7 --z 1
   real geodesic    --metric schwarzschild --x 0,10,1.5708,0 --v 1.2,0,0,0.04 --lambda 100
   real xor 0 1
+  real cnot 0.7071,0 0,0 0.7071,0 0,0
 
 Metrics: minkowski, schwarzschild, kerr, rn, kn, ef
   --mass, --spin (a = J/M), --charge
@@ -91,6 +94,11 @@ A length of 1 with --mass 1 is one solar mass when scaled by 1.477 km
 xor flies a circular Schwarzschild geodesic at r = 10. Each input 1
 advances φ by half a turn. The output is 1 when the ship ends nearer π
 than a multiple of 2π.
+
+cnot is that gate on amplitudes |control, target>. Each basis component
+flies the same circle, starting at φ = 0 or π. Control 1 advances it by
+half a turn, and the amplitude follows the ship. The example is |+⟩|0⟩,
+which lands on (|00⟩+|11⟩)/√2.
 `)
 }
 
@@ -164,6 +172,52 @@ func bitNum(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+func cmdCNOT(args []string) error {
+	if len(args) != 4 {
+		return fmt.Errorf("usage: real cnot <a00> <a01> <a10> <a11>\n  each amplitude is re or re,im")
+	}
+	var in gr.TwoQubit
+	for i, a := range args {
+		z, err := parseAmp(a)
+		if err != nil {
+			return fmt.Errorf("amplitude %d: %w", i, err)
+		}
+		in[i] = z
+	}
+	tr, err := gr.CNOT(in)
+	if err != nil {
+		return err
+	}
+	fmt.Println("CNOT |c t⟩")
+	for i := 0; i < 4; i++ {
+		fmt.Printf("  |%d%d⟩  % .8f%+.8fi\n", i>>1, i&1, real(tr.Out[i]), imag(tr.Out[i]))
+	}
+	fmt.Println("basis geodesics")
+	for i := 0; i < 4; i++ {
+		fmt.Printf("  |%d%d⟩  φ = %.8f rad, r = %.6g\n", i>>1, i&1, tr.Phi[i], tr.R[i])
+	}
+	return nil
+}
+
+func parseAmp(s string) (complex128, error) {
+	parts := strings.Split(s, ",")
+	if len(parts) > 2 {
+		return 0, fmt.Errorf("want re or re,im, got %q", s)
+	}
+	re, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q: %w", s, err)
+	}
+	if len(parts) == 1 {
+		return complex(re, 0), nil
+	}
+	im, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q: %w", s, err)
+	}
+	return complex(re, im), nil
 }
 
 func cmdCurvature(args []string) error {
